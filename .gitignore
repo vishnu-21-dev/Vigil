@@ -1,1 +1,35 @@
-.env 
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+pytest-cache-files-*/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Logs and local runtime output
+*.log
+*.sqlite
+*.sqlite3
+*.db
+
+# Large local dataset files
+data/*.csv
+!data/features.csv
+!data/device_info.csv
+!data/data_summary.csv
+
+# Generated ML model artifacts
+ml/models/*.pkl
+ml/models/*.joblib

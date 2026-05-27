@@ -1,0 +1,250 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Devices - Vigil IoT Security Ops</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-fixed": "#dae2fd",
+                        "surface-container-high": "#2a2a2b",
+                        "primary": "#b9c7e0",
+                        "tertiary-fixed": "#fcdeb3",
+                        "tertiary-fixed-dim": "#dfc299",
+                        "surface-bright": "#39393b",
+                        "on-error": "#690005",
+                        "error-container": "#93000a",
+                        "on-tertiary-container": "#c3a881",
+                        "on-surface": "#e4e2e4",
+                        "on-primary": "#233144",
+                        "inverse-on-surface": "#303032",
+                        "secondary-container": "#3f465c",
+                        "tertiary": "#dfc299",
+                        "surface-tint": "#b9c7e0",
+                        "secondary-fixed-dim": "#bec6e0",
+                        "on-error-container": "#ffdad6",
+                        "primary-fixed-dim": "#b9c7e0",
+                        "outline": "#8e9197",
+                        "inverse-primary": "#515f74",
+                        "on-primary-fixed-variant": "#3a485c",
+                        "primary-fixed": "#d5e3fd",
+                        "surface-container-low": "#1b1b1d",
+                        "surface-container-highest": "#343536",
+                        "on-primary-fixed": "#0d1c2f",
+                        "on-primary-container": "#9eadc5",
+                        "surface-container-lowest": "#0e0e10",
+                        "secondary": "#bec6e0",
+                        "on-tertiary": "#3f2d10",
+                        "surface": "#131315",
+                        "on-tertiary-fixed-variant": "#574424",
+                        "surface-dim": "#131315",
+                        "on-surface-variant": "#c5c6cd",
+                        "surface-variant": "#343536",
+                        "on-secondary-fixed": "#131b2e",
+                        "on-background": "#e4e2e4",
+                        "inverse-surface": "#e4e2e4",
+                        "tertiary-container": "#503d1e",
+                        "error": "#ffb4ab",
+                        "outline-variant": "#44474c",
+                        "on-secondary-container": "#adb4ce",
+                        "on-secondary": "#283044",
+                        "surface-container": "#1f1f21",
+                        "on-tertiary-fixed": "#281901",
+                        "primary-container": "#334155",
+                        "on-secondary-fixed-variant": "#3f465c",
+                        "background": "#131315"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "xl": "32px",
+                        "md": "16px",
+                        "gutter": "16px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "base": "4px",
+                        "margin": "24px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "body-sm": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "data-sm": ["JetBrains Mono"],
+                        "data-md": ["JetBrains Mono"],
+                        "headline-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-lg": ["Inter"],
+                        "data-lg": ["JetBrains Mono"],
+                        "headline-sm": ["Inter"],
+                        "body-md": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "data-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "data-md": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "data-lg": ["16px", { "lineHeight": "24px", "fontWeight": "500" }],
+                        "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: theme('colors.background'); color: theme('colors.on-background'); }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden bg-background text-on-background font-body-md antialiased">
+<!-- SideNavBar -->
+<aside class="docked left-0 h-full w-64 border-r border-outline-variant bg-surface-container dark:bg-surface-container flex flex-col py-md shrink-0 hidden md:flex">
+<div class="px-margin mb-xl">
+<h1 class="font-headline-sm text-headline-sm tracking-tight text-on-surface">Vigil</h1>
+<p class="font-label-caps text-label-caps text-on-surface-variant">IoT Security Ops</p>
+</div>
+<nav class="flex-1 px-sm space-y-sm">
+<a class="flex items-center px-md py-sm rounded group cursor-pointer text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all font-label-caps text-label-caps" href="index.html">
+<span class="material-symbols-outlined mr-sm text-lg">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center px-md py-sm rounded group cursor-pointer bg-secondary-container text-on-secondary-container border-l-4 border-primary font-label-caps text-label-caps" href="devices.html">
+<span class="material-symbols-outlined mr-sm text-lg">developer_board</span>
+                Devices
+            </a>
+<a class="flex items-center px-md py-sm rounded group cursor-pointer text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all font-label-caps text-label-caps" href="alerts.html">
+<span class="material-symbols-outlined mr-sm text-lg">warning</span>
+                Alerts
+            </a>
+<a class="flex items-center px-md py-sm rounded group cursor-pointer text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all font-label-caps text-label-caps" href="quarantine.html">
+<span class="material-symbols-outlined mr-sm text-lg">security</span>
+                Quarantine
+            </a>
+<a class="flex items-center px-md py-sm rounded group cursor-pointer text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest transition-all font-label-caps text-label-caps" href="report.html">
+<span class="material-symbols-outlined mr-sm text-lg">assessment</span>
+                Reports
+            </a>
+</nav>
+</aside>
+<div class="flex-1 flex flex-col h-full overflow-hidden">
+<!-- TopNavBar -->
+<header class="docked full-width top-0 border-b border-outline-variant bg-surface dark:bg-surface flex justify-between items-center w-full px-margin h-16 shrink-0">
+<div class="flex items-center md:hidden">
+<span class="font-headline-md text-headline-md font-bold text-primary dark:text-primary mr-lg">Vigil</span>
+</div>
+<div class="flex-1 flex items-center max-w-md mx-auto md:mx-0 md:ml-xl">
+<div class="relative w-full">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input id="search-input" class="w-full bg-surface-container-high border border-outline-variant rounded pl-10 pr-sm py-xs font-body-sm text-body-sm text-on-surface focus:border-primary focus:ring-1 focus:ring-primary transition-colors outline-none h-8" placeholder="Search resources..." type="text">
+</div>
+</div>
+<div class="flex items-center space-x-md ml-auto">
+<button class="text-on-surface-variant hover:bg-surface-container-high transition-colors p-sm rounded cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">sensors</span>
+</button>
+<button class="text-on-surface-variant hover:bg-surface-container-high transition-colors p-sm rounded cursor-pointer active:opacity-80 relative">
+<span class="material-symbols-outlined">notifications</span>
+<div id="notification-dot" class="absolute top-1 right-1 w-2 h-2 bg-error rounded-full hidden"></div>
+</button>
+<button class="text-on-surface-variant hover:bg-surface-container-high transition-colors p-sm rounded cursor-pointer active:opacity-80">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 overflow-auto p-margin">
+<!-- Page Header -->
+<div class="flex flex-col md:flex-row md:items-end justify-between mb-lg gap-md">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Devices</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-xs">All monitored IoT devices</p>
+</div>
+<div class="flex items-center gap-sm">
+<button class="px-md py-sm bg-transparent border border-outline-variant text-on-surface font-label-caps text-label-caps rounded hover:border-primary transition-colors flex items-center">
+<span class="material-symbols-outlined text-sm mr-xs">upload</span>
+                        Import CSV
+                    </button>
+<button class="px-md py-sm bg-primary-container text-on-primary-container font-label-caps text-label-caps rounded hover:bg-secondary-container transition-colors flex items-center">
+<span class="material-symbols-outlined text-sm mr-xs">add</span>
+                        Add Device
+                    </button>
+</div>
+</div>
+<!-- Table Controls -->
+<div class="flex flex-col md:flex-row items-center justify-between mb-md gap-md bg-surface-container p-md rounded border border-outline-variant">
+<div class="relative w-full md:w-96">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input id="filter-input" class="w-full bg-surface border border-outline-variant rounded pl-10 pr-sm py-xs font-body-sm text-body-sm text-on-surface focus:border-primary transition-colors outline-none" placeholder="Filter devices by name, IP, or zone..." type="text">
+</div>
+<div class="flex items-center gap-sm w-full md:w-auto">
+<label class="font-label-caps text-label-caps text-on-surface-variant whitespace-nowrap">Status:</label>
+<select id="status-filter" class="bg-surface border border-outline-variant rounded px-sm py-xs font-body-sm text-body-sm text-on-surface focus:border-primary outline-none">
+<option value="all">All</option>
+<option value="normal">Normal</option>
+<option value="anomaly">Anomaly</option>
+<option value="quarantined">Quarantined</option>
+</select>
+</div>
+</div>
+<!-- Data Table Container -->
+<div class="bg-surface-container rounded border border-outline-variant overflow-hidden flex flex-col">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="border-b border-outline-variant bg-surface-container-high">
+<th class="py-sm px-md font-label-caps text-label-caps text-on-surface-variant whitespace-nowrap">Device Name</th>
+<th class="py-sm px-md font-label-caps text-label-caps text-on-surface-variant whitespace-nowrap">IP Address</th>
+<th class="py-sm px-md font-label-caps text-label-caps text-on-surface-variant whitespace-nowrap">Zone</th>
+<th class="py-sm px-md font-label-caps text-label-caps text-on-surface-variant whitespace-nowrap">Status</th>
+<th class="py-sm px-md font-label-caps text-label-caps text-on-surface-variant whitespace-nowrap">Last Seen</th>
+<th class="py-sm px-md font-label-caps text-label-caps text-on-surface-variant whitespace-nowrap text-right">Anomaly Score</th>
+<th class="py-sm px-md font-label-caps text-label-caps text-on-surface-variant whitespace-nowrap text-right">Actions</th>
+</tr>
+</thead>
+<tbody id="devices-tbody" class="divide-y divide-outline-variant font-data-sm text-data-sm text-on-surface">
+<!-- JavaScript will inject rows here -->
+</tbody>
+</table>
+</div>
+<!-- Table Footer / Pagination -->
+<div class="border-t border-outline-variant bg-surface-container-high p-sm flex items-center justify-between">
+<span id="devices-summary" class="font-body-sm text-body-sm text-on-surface-variant pl-sm">0 devices</span>
+<div class="flex items-center gap-xs pr-sm">
+<button class="p-xs text-on-surface-variant hover:text-on-surface hover:bg-surface transition-colors rounded disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined text-sm">chevron_left</span>
+</button>
+<button class="p-xs text-on-surface-variant hover:text-on-surface hover:bg-surface transition-colors rounded">
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+<script>
+const scriptBase = window.location.pathname.startsWith('/app') ? '/frontend' : '.';
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.body.appendChild(s);
+  });
+}
+loadScript(scriptBase + '/js/api.js')
+  .then(() => loadScript(scriptBase + '/js/devices.js'))
+  .catch(err => console.error('Script load failed:', err));
+</script>
+</body></html>
