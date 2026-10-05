@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import threading
 import time
 from contextlib import contextmanager
 from datetime import datetime, timedelta
@@ -315,3 +316,77 @@ def test_slow_report_does_not_block_the_event_loop(client, monkeypatch):
         f"event loop stalled for {longest_stall:.1f}s while the report was generated "
         f"({len(during) - 2} heartbeats in {finished - started:.1f}s)"
     )
+
+
+def test_human_cannot_approve_or_dismiss_an_ai_contained_request_mid_report(client, monkeypatch):
+    """While the failsafe's report is still being generated, the request is already
+    ai_contained and the device quarantined. Only release may take it from there."""
+    monkeypatch.setattr(
+        groq_client, "settings", SimpleNamespace(groq_api_key="test-key", groq_model="test-model")
+    )
+    report_finished = threading.Event()
+
+    def slow_create(**_kwargs):
+        time.sleep(3)
+        report_finished.set()
+        payload = {"title": "T", "severity": "high", "summary": "S", "full_report": "F"}
+        message = SimpleNamespace(content=json.dumps(payload))
+        return SimpleNamespace(choices=[SimpleNamespace(message=message)])
+
+    class SlowGroq:
+        def __init__(self, **_kwargs):
+            self.chat = SimpleNamespace(completions=SimpleNamespace(create=slow_create))
+
+    monkeypatch.setattr("groq.Groq", SlowGroq)
+    device, _ = _ingest_anomaly(client)
+    observed: dict = {}
+
+    async def scenario():
+        async def human():
+            request = None
+            for _ in range(200):  # wait for the failsafe to write ai_contained
+                found = await asyncio.to_thread(_requests_for, client, device["id"])
+                request = next((r for r in found if r["status"] == "ai_contained"), None)
+                if request:
+                    break
+                await asyncio.sleep(0.05)
+            assert request, "failsafe never produced an ai_contained request"
+            observed["report_still_running"] = not report_finished.is_set()
+            observed["dismiss"] = await asyncio.to_thread(
+                client.post, f"/quarantine/{request['id']}/dismiss"
+            )
+            observed["device_after_dismiss"] = (
+                await asyncio.to_thread(client.get, f"/devices/{device['id']}")
+            ).json()["status"]
+            observed["approve"] = await asyncio.to_thread(
+                client.post, f"/quarantine/{request['id']}/approve", json={"approved_by": "human"}
+            )
+            observed["request_id"] = request["id"]
+
+        task = asyncio.create_task(human())
+        try:
+            await failsafe.failsafe_loop()
+        except _StopLoop:
+            pass
+        await task
+
+    with _patched_failsafe(real_to_thread=True):
+        asyncio.run(scenario())
+
+    assert observed["report_still_running"], "test did not catch the mid-report window"
+    after = _requests_for(client, device["id"])
+    device_after = client.get(f"/devices/{device['id']}").json()
+    detail = (
+        f"dismiss={observed['dismiss'].status_code} (device right after dismiss: "
+        f"{observed['device_after_dismiss']}), approve={observed['approve'].status_code}, "
+        f"request now {[r['status'] for r in after]}, device now {device_after['status']}"
+    )
+    assert observed["dismiss"].status_code == 400, detail
+    assert observed["approve"].status_code == 400, detail
+    assert [r["status"] for r in after] == ["ai_contained"], detail
+    assert device_after["status"] == "quarantined", detail
+
+    # Release remains the one way out.
+    release = client.post(f"/quarantine/{observed['request_id']}/release")
+    assert release.status_code == 200
+    assert client.get(f"/devices/{device['id']}").json()["status"] == "normal"

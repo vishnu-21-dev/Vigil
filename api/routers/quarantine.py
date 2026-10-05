@@ -32,6 +32,17 @@ VALID_QUARANTINE_STATUSES = {
 router = APIRouter(prefix="/quarantine", tags=["quarantine"])
 
 
+def _require_pending(request: dict, action: str) -> None:
+    status = request["status"]
+    if status == "pending":
+        return
+    if status == "ai_contained":
+        detail = "AI-contained requests can only be released."
+    else:
+        detail = f"Only pending requests can be {action}; this request is {status}."
+    raise HTTPException(status_code=400, detail=detail)
+
+
 def _acknowledge_device_alerts(device_id: str) -> None:
     for alert in get_active_unacknowledged_alerts():
         if alert["device_id"] == device_id:
@@ -97,6 +108,7 @@ def approve_quarantine_request(
     request = get_quarantine_request(request_id)
     if request is None:
         raise HTTPException(status_code=404, detail="Quarantine request not found.")
+    _require_pending(request, "approved")
 
     now = datetime.now(timezone.utc)
     updated_request = update_quarantine_request(
@@ -121,6 +133,7 @@ def dismiss_quarantine_request(request_id: str) -> QuarantineResponse:
     request = get_quarantine_request(request_id)
     if request is None:
         raise HTTPException(status_code=404, detail="Quarantine request not found.")
+    _require_pending(request, "dismissed")
 
     updated_request = update_quarantine_request(
         request_id,
