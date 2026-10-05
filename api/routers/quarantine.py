@@ -32,6 +32,12 @@ VALID_QUARANTINE_STATUSES = {
 router = APIRouter(prefix="/quarantine", tags=["quarantine"])
 
 
+def _acknowledge_device_alerts(device_id: str) -> None:
+    for alert in get_active_unacknowledged_alerts():
+        if alert["device_id"] == device_id:
+            acknowledge_alert(alert["id"])
+
+
 @router.post("/request", response_model=QuarantineResponse)
 def create_quarantine_request(
     request: QuarantineRequestCreate,
@@ -60,9 +66,7 @@ def create_quarantine_request(
             "requires_human_approval": True,
         }
     )
-    for alert in get_active_unacknowledged_alerts():
-        if alert["device_id"] == device["id"]:
-            acknowledge_alert(alert["id"])
+    _acknowledge_device_alerts(device["id"])
     return QuarantineResponse(**created)
 
 
@@ -108,6 +112,7 @@ def approve_quarantine_request(
         },
     )
     update_device(request["device_id"], {"status": "quarantined"})
+    _acknowledge_device_alerts(request["device_id"])
     return QuarantineResponse(**updated_request)
 
 
@@ -125,6 +130,7 @@ def dismiss_quarantine_request(request_id: str) -> QuarantineResponse:
         },
     )
     update_device(request["device_id"], {"status": "normal", "anomaly_score": 0.0})
+    _acknowledge_device_alerts(request["device_id"])
     return QuarantineResponse(**updated_request)
 
 

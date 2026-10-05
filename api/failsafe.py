@@ -10,8 +10,11 @@ from api.store import (
     acknowledge_alert,
     add_quarantine_request,
     get_active_unacknowledged_alerts,
+    get_all_alerts,
+    get_all_quarantine_requests,
     get_device,
     update_device,
+    update_quarantine_request,
     add_report,
 )
 from api.groq_client import generate_incident_report
@@ -29,19 +32,21 @@ def _parse_created_at(value: Any) -> datetime:
 
 
 def auto_quarantine(alert: dict[str, Any], elapsed: float, confidence: float) -> None:
+    # Re-read current state: the alert/device may have changed since the tick's
+    # snapshot (e.g. a human approved or dismissed in the meantime).
+    current_alert = next(
+        (item for item in get_all_alerts() if item["id"] == alert["id"]), None
+    )
+    if current_alert is None or current_alert.get("acknowledged"):
+        return
     device = get_device(alert["device_id"])
-    if not device:
+    if not device or device["status"] != "anomaly":
         return
 
+    acknowledge_alert(alert["id"])
     now = datetime.now(timezone.utc)
 
-    request = {
-        "id": str(uuid.uuid4()),
-        "device_id": device["id"],
-        "device_name": device["name"],
-        "zone": device["zone"],
-        "confidence": confidence,
-        "flagged_at": _parse_created_at(alert["created_at"]),
+    containment = {
         "status": "ai_contained",
         "approved_by": "AI Failsafe",
         "approved_at": now,
@@ -55,7 +60,28 @@ def auto_quarantine(alert: dict[str, Any], elapsed: float, confidence: float) ->
         "auto_contained_at": now,
     }
 
-    add_quarantine_request(request)
+    pending = next(
+        (
+            item
+            for item in get_all_quarantine_requests(status="pending")
+            if item["device_id"] == device["id"]
+        ),
+        None,
+    )
+    if pending is not None:
+        update_quarantine_request(pending["id"], containment)
+    else:
+        add_quarantine_request(
+            {
+                "id": str(uuid.uuid4()),
+                "device_id": device["id"],
+                "device_name": device["name"],
+                "zone": device["zone"],
+                "confidence": confidence,
+                "flagged_at": _parse_created_at(alert["created_at"]),
+                **containment,
+            }
+        )
     update_device(device["id"], {"status": "quarantined"})
     
     try:
@@ -93,12 +119,22 @@ def auto_quarantine(alert: dict[str, Any], elapsed: float, confidence: float) ->
 async def failsafe_loop() -> None:
     while True:
         await asyncio.sleep(10)
-        now = datetime.now(timezone.utc)
-        for alert in get_active_unacknowledged_alerts():
-            created = _parse_created_at(alert["created_at"])
-            elapsed = (now - created).total_seconds()
-            confidence = float(alert.get("confidence", 0))
+        try:
+            now = datetime.now(timezone.utc)
+            alerts = get_active_unacknowledged_alerts()
+        except Exception:
+            logger.exception("AI failsafe tick could not fetch alerts")
+            continue
 
-            if elapsed >= FAILSAFE_TIMEOUT and confidence >= FAILSAFE_THRESHOLD:
-                acknowledge_alert(alert["id"])
-                auto_quarantine(alert, elapsed, confidence)
+        for alert in alerts:
+            try:
+                created = _parse_created_at(alert["created_at"])
+                elapsed = (now - created).total_seconds()
+                confidence = float(alert.get("confidence", 0))
+
+                if elapsed >= FAILSAFE_TIMEOUT and confidence >= FAILSAFE_THRESHOLD:
+                    auto_quarantine(alert, elapsed, confidence)
+            except Exception:
+                logger.exception(
+                    "AI failsafe failed processing alert_id=%s", alert.get("id")
+                )
