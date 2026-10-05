@@ -13,6 +13,19 @@ const API_BASE = window.location.port === "8000"
   ? ""                             // Served from FastAPI
   : "http://localhost:8000";       // Separate dev server
 
+/**
+ * How the failsafe countdown should render for an ACTIVE alert.
+ * "countdown" (not yet acknowledged) | "ai_contained" | "handled".
+ * Joined client-side from /alerts and /quarantine; no API change.
+ */
+function failsafeState(alert, quarantineRequests) {
+  if (!alert.acknowledged) return "countdown";
+  const latest = quarantineRequests
+    .filter(r => r.device_id === alert.device_id)
+    .sort((a, b) => Date.parse(b.flagged_at) - Date.parse(a.flagged_at))[0];
+  return latest && latest.status === "ai_contained" ? "ai_contained" : "handled";
+}
+
 const API = (() => {
   // ---- helpers ----
 

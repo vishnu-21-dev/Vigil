@@ -30,9 +30,10 @@ function startPolling() {
 // ---- main loader ----
 
 async function loadAlerts() {
-  const [alerts, activeAlertsList] = await Promise.all([
+  const [alerts, activeAlertsList, quarantine] = await Promise.all([
     API.alerts.list(),
     API.alerts.list("active"),
+    API.quarantine.list(),
   ]);
 
   allAlerts = alerts;
@@ -44,7 +45,7 @@ async function loadAlerts() {
   }
 
   renderStatsRibbon(alerts);
-  renderAlertsTable(alerts);
+  renderAlertsTable(alerts, quarantine);
   startCountdowns();
 }
 
@@ -96,7 +97,7 @@ function renderStatsRibbon(alerts) {
 
 // ---- alerts table ----
 
-function renderAlertsTable(alerts) {
+function renderAlertsTable(alerts, quarantine) {
   const tbody = document.getElementById("alerts-tbody");
   if (!tbody) return;
 
@@ -126,6 +127,7 @@ function renderAlertsTable(alerts) {
   tbody.innerHTML = sorted.map(a => {
     const severity = getSeverity(a.confidence);
     const isActive = a.status === "active";
+    const state = isActive ? failsafeState(a, quarantine) : null;
     const rowOpacity = isActive ? "" : "opacity-60";
 
     return `
@@ -158,18 +160,23 @@ function renderAlertsTable(alerts) {
           </span>
         </td>
         <td class="p-md font-data-md text-data-md">
-          ${isActive ? `
+          ${state === "countdown" ? `
             <span class="failsafe-countdown text-error font-bold" data-created="${a.created_at}" data-timeout="${a.failsafe_timeout || 120}">--</span>
+          ` : state === "ai_contained" ? `
+            <span class="text-tertiary font-bold">AI CONTAINED</span>
+          ` : state === "handled" ? `
+            <span class="text-on-surface-variant font-bold">HANDLED</span>
           ` : `
             <span class="text-on-surface-variant">--</span>
           `}
         </td>
         <td class="p-md text-right space-x-sm">
           ${isActive ? `
+            ${state === "countdown" ? `
             <button class="text-tertiary hover:bg-tertiary/10 p-xs rounded transition-colors" title="Quarantine"
                     onclick="quarantineFromAlert('${a.device_id}', '${esc(a.alert_type)}')">
               <span class="material-symbols-outlined text-sm">security</span>
-            </button>
+            </button>` : ""}
             <button class="text-primary hover:bg-primary/10 p-xs rounded transition-colors" title="Resolve"
                     onclick="resolveAlert('${a.id}')">
               <span class="material-symbols-outlined text-sm">check_circle</span>

@@ -37,7 +37,7 @@ async function loadDashboard() {
 
   renderStats(devices, alerts, quarantine);
   renderNetworkTopology(devices);
-  renderAlertFeed(alerts, devices);
+  renderAlertFeed(alerts, devices, quarantine);
   startCountdowns();
 }
 
@@ -222,7 +222,7 @@ function getNodeStyle(status) {
 
 // ---- alert feed ----
 
-function renderAlertFeed(alerts, devices) {
+function renderAlertFeed(alerts, devices, quarantine) {
   const feed = document.getElementById("alert-feed");
   if (!feed) return;
 
@@ -253,7 +253,9 @@ function renderAlertFeed(alerts, devices) {
     return;
   }
 
-  feed.innerHTML = active.map(a => `
+  feed.innerHTML = active.map(a => {
+    const state = failsafeState(a, quarantine);
+    return `
     <div class="p-md hover:bg-surface-container-highest transition-colors group cursor-pointer" onclick="viewAlert('${a.id}')">
       <div class="flex justify-between items-start mb-sm">
         <div class="font-data-md text-data-md text-error flex items-center">
@@ -270,20 +272,25 @@ function renderAlertFeed(alerts, devices) {
       <div class="flex items-center space-x-sm mb-md">
         <span class="font-body-sm text-body-sm text-on-surface-variant">Anomaly Confidence:</span>
         <span class="font-data-sm text-data-sm text-on-surface bg-surface-container border border-outline-variant px-1 rounded mr-md">${(a.confidence * 100).toFixed(0)}%</span>
-        <span class="failsafe-countdown" data-created="${a.created_at}" data-timeout="${a.failsafe_timeout || 120}"></span>
+        ${state === "countdown"
+          ? `<span class="failsafe-countdown" data-created="${a.created_at}" data-timeout="${a.failsafe_timeout || 120}"></span>`
+          : state === "ai_contained"
+            ? `<span class="text-on-error-container bg-error-container px-2 py-0.5 rounded font-label-caps text-[10px]">AI CONTAINED</span>`
+            : `<span class="text-on-surface-variant border border-outline-variant px-2 py-0.5 rounded font-label-caps text-[10px]">HANDLED</span>`}
       </div>
       <div class="flex justify-end space-x-sm">
-        <button class="bg-tertiary-container/30 hover:bg-tertiary-container border border-tertiary text-tertiary font-label-caps text-label-caps px-md py-sm uppercase tracking-wider transition-colors"
+        ${state === "countdown" ? `<button class="bg-tertiary-container/30 hover:bg-tertiary-container border border-tertiary text-tertiary font-label-caps text-label-caps px-md py-sm uppercase tracking-wider transition-colors"
                 onclick="event.stopPropagation(); quarantineFromAlert('${a.device_id}', '${esc(a.alert_type)}')">
           Quarantine
-        </button>
+        </button>` : ""}
         <button class="bg-primary-container/30 hover:bg-primary-container border border-primary text-primary font-label-caps text-label-caps px-md py-sm uppercase tracking-wider transition-colors"
                 onclick="event.stopPropagation(); resolveAlert('${a.id}')">
           Resolve
         </button>
       </div>
     </div>
-  `).join("");
+  `;
+  }).join("");
 }
 
 // ---- actions ----
