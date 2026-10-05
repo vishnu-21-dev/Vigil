@@ -162,7 +162,7 @@ def _store_alert(alert: dict[str, Any]) -> dict[str, Any]:
                 stored_alert["id"],
                 stored_alert["status"],
                 int(bool(stored_alert.get("acknowledged", False))),
-                str(stored_alert["created_at"]),
+                str(_json_ready(stored_alert["created_at"])),
                 _dump(stored_alert),
             ),
         )
