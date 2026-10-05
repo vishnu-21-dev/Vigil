@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from api.config import settings
+
+logger = logging.getLogger("uvicorn.error")
 
 
 def _severity_from_confidence(confidence: float) -> str:
@@ -62,12 +65,12 @@ def generate_incident_report(alert: dict[str, Any], device: dict[str, Any]) -> d
     api_key = settings.groq_api_key.strip()
 
     if not api_key:
-        return fallback
+        return {**fallback, "source": "fallback"}
 
     try:
-        from groq import APIError, RateLimitError, Groq
+        from groq import Groq
 
-        client = Groq(api_key=api_key)
+        client = Groq(api_key=api_key, timeout=10.0, max_retries=0)
         prompt = f"""
 You are generating a security incident report for an industrial IoT defense system.
 Return valid JSON only with keys: title, severity, summary, full_report.
@@ -89,7 +92,7 @@ Requirements:
 - Full report: include technical details and 3-5 recommended action bullets
 """
         completion = client.chat.completions.create(
-            model="llama3-8b-8192",
+            model=settings.groq_model,
             temperature=0.2,
             response_format={"type": "json_object"},
             messages=[
@@ -107,9 +110,12 @@ Requirements:
             "severity": str(parsed.get("severity") or severity).lower(),
             "summary": str(parsed.get("summary") or fallback["summary"]),
             "full_report": str(parsed.get("full_report") or fallback["full_report"]),
+            "source": "llm",
         }
     except Exception as exc:
-        error_name = exc.__class__.__name__
-        if error_name in {"RateLimitError", "APIError"}:
-            return fallback
-        return fallback
+        logger.warning(
+            "Groq report generation failed (%s: %s); using fallback template",
+            type(exc).__name__,
+            str(exc).replace(api_key, "***"),
+        )
+        return {**fallback, "source": "fallback"}

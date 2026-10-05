@@ -38,6 +38,7 @@ def generate_report(request: ReportGenerateRequest) -> ReportResponse:
             "severity": generated["severity"],
             "summary": generated["summary"],
             "full_report": generated["full_report"],
+            "source": generated["source"],
             "affected_devices": [device["name"]],
             "created_at": datetime.now(timezone.utc),
             "alert_id": alert["id"],

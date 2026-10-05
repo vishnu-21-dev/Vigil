@@ -99,6 +99,7 @@ def auto_quarantine(alert: dict[str, Any], elapsed: float, confidence: float) ->
                 "severity": generated["severity"],
                 "summary": generated["summary"],
                 "full_report": generated["full_report"],
+                "source": generated["source"],
                 "affected_devices": [device["name"]],
                 "created_at": now,
                 "alert_id": alert["id"],

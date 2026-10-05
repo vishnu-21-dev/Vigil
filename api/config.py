@@ -26,6 +26,7 @@ class Settings:
     model_dir: str = _resolve_model_dir()
     db_path: str = os.getenv("DB_PATH", "data/app_state.sqlite3")
     groq_api_key: str = os.getenv("GROQ_API_KEY", "")
+    groq_model: str = os.getenv("GROQ_MODEL") or "llama-3.1-8b-instant"
 
 
 settings = Settings()
