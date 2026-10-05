@@ -8,3 +8,4 @@ scikit-learn
 joblib
 requests
 pytest
+python-multipart==0.0.32
