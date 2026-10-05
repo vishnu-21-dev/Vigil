@@ -134,7 +134,7 @@ async def failsafe_loop() -> None:
                 confidence = float(alert.get("confidence", 0))
 
                 if elapsed >= FAILSAFE_TIMEOUT and confidence >= FAILSAFE_THRESHOLD:
-                    auto_quarantine(alert, elapsed, confidence)
+                    await asyncio.to_thread(auto_quarantine, alert, elapsed, confidence)
             except Exception:
                 logger.exception(
                     "AI failsafe failed processing alert_id=%s", alert.get("id")

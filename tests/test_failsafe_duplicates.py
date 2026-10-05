@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import time
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 
-from api import failsafe
+from api import failsafe, groq_client
 from api.store import add_alert
 
 
@@ -37,8 +40,15 @@ def _stub_inference(monkeypatch):
     )
 
 
-def _run_one_failsafe_tick(jump_seconds: int = CLOCK_JUMP_SECONDS, ticks: int = 1) -> None:
-    """Run failsafe_loop through `ticks` ticks, with the clock jumped forward."""
+@contextmanager
+def _patched_failsafe(
+    jump_seconds: int = CLOCK_JUMP_SECONDS, ticks: int = 1, real_to_thread: bool = False
+):
+    """Patch failsafe's own asyncio/datetime references (the app's live loop is untouched).
+
+    sleep returns immediately and stops the loop after `ticks` ticks; the clock is shifted
+    forward; to_thread runs the function inline unless real_to_thread is set.
+    """
     sleeps = 0
     shifted = type("_Shifted", (_FutureDatetime,), {"jump_seconds": jump_seconds})
 
@@ -48,10 +58,22 @@ def _run_one_failsafe_tick(jump_seconds: int = CLOCK_JUMP_SECONDS, ticks: int = 
         if sleeps > ticks:
             raise _StopLoop
 
-    # Patch only failsafe's own references so the app's live loop task is untouched.
-    with patch.object(failsafe, "asyncio", SimpleNamespace(sleep=fake_sleep)), patch.object(
+    async def inline_to_thread(func, /, *args, **kwargs):
+        return func(*args, **kwargs)
+
+    fake_asyncio = SimpleNamespace(
+        sleep=fake_sleep,
+        to_thread=asyncio.to_thread if real_to_thread else inline_to_thread,
+    )
+    with patch.object(failsafe, "asyncio", fake_asyncio), patch.object(
         failsafe, "datetime", shifted
     ):
+        yield
+
+
+def _run_one_failsafe_tick(jump_seconds: int = CLOCK_JUMP_SECONDS, ticks: int = 1) -> None:
+    """Run failsafe_loop through `ticks` ticks, with the clock jumped forward."""
+    with _patched_failsafe(jump_seconds, ticks):
         with pytest.raises(_StopLoop):
             asyncio.run(failsafe.failsafe_loop())
 
@@ -240,3 +262,56 @@ def test_resolving_an_alert_on_an_anomaly_device_still_resets_it_to_normal(clien
     updated = client.get(f"/devices/{device['id']}").json()
     assert updated["status"] == "normal"
     assert updated["anomaly_score"] == 0.0
+
+
+def test_slow_report_does_not_block_the_event_loop(client, monkeypatch):
+    """A 3s blocking Groq call inside auto_quarantine must not freeze other async work."""
+    monkeypatch.setattr(
+        groq_client, "settings", SimpleNamespace(groq_api_key="test-key", groq_model="test-model")
+    )
+
+    def slow_create(**_kwargs):
+        time.sleep(3)  # blocking, like the real synchronous SDK call
+        payload = {"title": "T", "severity": "high", "summary": "S", "full_report": "F"}
+        message = SimpleNamespace(content=json.dumps(payload))
+        return SimpleNamespace(choices=[SimpleNamespace(message=message)])
+
+    class SlowGroq:
+        def __init__(self, **_kwargs):
+            self.chat = SimpleNamespace(completions=SimpleNamespace(create=slow_create))
+
+    monkeypatch.setattr("groq.Groq", SlowGroq)
+    device, _ = _ingest_anomaly(client)
+
+    real_sleep = asyncio.sleep
+    beats: list[float] = []
+
+    async def scenario():
+        async def heartbeat():
+            while True:
+                await real_sleep(0.1)
+                beats.append(time.monotonic())
+
+        task = asyncio.create_task(heartbeat())
+        await real_sleep(0.3)  # let the heartbeat start
+        started = time.monotonic()
+        try:
+            await failsafe.failsafe_loop()
+        except _StopLoop:
+            pass
+        finished = time.monotonic()
+        task.cancel()
+        return started, finished
+
+    with _patched_failsafe(real_to_thread=True):
+        started, finished = asyncio.run(scenario())
+
+    during = [started] + [b for b in beats if started <= b <= finished] + [finished]
+    longest_stall = max(b - a for a, b in zip(during, during[1:]))
+
+    assert finished - started >= 2.5, "the slow report never ran inside the tick"
+    assert client.get(f"/devices/{device['id']}").json()["status"] == "quarantined"
+    assert longest_stall < 1.0, (
+        f"event loop stalled for {longest_stall:.1f}s while the report was generated "
+        f"({len(during) - 2} heartbeats in {finished - started:.1f}s)"
+    )
