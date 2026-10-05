@@ -1,15 +1,21 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
-
-import pandas as pd
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
+FIXTURES_DIR = ROOT_DIR / "tests" / "fixtures"
+
+# First data row of each N-BaIoT CSV, committed so tests don't need the 100MB+ dataset.
+_FIXTURES = {
+    "1.mirai.ack.csv": "mirai_ack_row.json",
+    "1.benign.csv": "benign_row.json",
+}
 
 
 def _sample_features(name: str) -> dict[str, float]:
-    return pd.read_csv(ROOT_DIR / "data" / name, nrows=1).iloc[0].to_dict()
+    return json.loads((FIXTURES_DIR / _FIXTURES[name]).read_text(encoding="utf-8"))
 
 
 def test_health_and_seeded_inventory(client):
