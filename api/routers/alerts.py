@@ -35,7 +35,7 @@ def resolve_existing_alert(alert_id: str) -> AlertResponse:
         raise HTTPException(status_code=404, detail="Alert not found.")
 
     device = get_device(alert["device_id"])
-    if device is not None:
+    if device is not None and device["status"] != "quarantined":
         update_device(
             device["id"],
             {

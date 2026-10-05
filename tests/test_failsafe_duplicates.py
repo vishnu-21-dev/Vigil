@@ -214,3 +214,29 @@ def test_failing_fetch_still_waits_one_interval_per_attempt(client):
             asyncio.run(failsafe.failsafe_loop())
 
     assert events == ["sleep", "fetch", "sleep", "fetch", "sleep", "fetch", "sleep"]
+
+
+def test_resolving_an_ai_contained_alert_leaves_containment_intact(client):
+    device, ingest = _ingest_anomaly(client)
+    _run_one_failsafe_tick()
+    assert client.get(f"/devices/{device['id']}").json()["status"] == "quarantined"
+
+    response = client.post(f"/alerts/{ingest['alert_id']}/resolve")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "resolved"
+    assert client.get(f"/devices/{device['id']}").json()["status"] == "quarantined"
+    assert [r["status"] for r in _requests_for(client, device["id"])] == ["ai_contained"]
+
+
+def test_resolving_an_alert_on_an_anomaly_device_still_resets_it_to_normal(client):
+    device, ingest = _ingest_anomaly(client)
+    assert client.get(f"/devices/{device['id']}").json()["status"] == "anomaly"
+
+    response = client.post(f"/alerts/{ingest['alert_id']}/resolve")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "resolved"
+    updated = client.get(f"/devices/{device['id']}").json()
+    assert updated["status"] == "normal"
+    assert updated["anomaly_score"] == 0.0
