@@ -1,11 +1,13 @@
-fastapi
-uvicorn[standard]
-python-dotenv
-groq
-pandas
-numpy
-scikit-learn
-joblib
-requests
-pytest
+fastapi==0.142.2
+uvicorn[standard]==0.54.0
+python-dotenv==1.2.4
+groq==1.7.0
+pandas==3.0.6
+numpy==2.5.3
+# Must match the version ml/models/*.pkl were saved with; bump only after retraining.
+scikit-learn==1.8.0
+joblib==1.6.0
+requests==2.34.2
+httpx==0.28.1
+pytest==9.1.1
 python-multipart==0.0.32
