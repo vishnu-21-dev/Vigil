@@ -25,7 +25,10 @@ from api.groq_client import generate_incident_report
 
 
 FAILSAFE_TIMEOUT = 120
-FAILSAFE_THRESHOLD = 0.85
+# Auto-quarantine only at >= 0.95. On held-out devices, false alarms on benign traffic
+# cluster at 0.85-0.90 (ml/audit/RESULTS.md section 4); lower-confidence alerts still
+# reach a human, they just are not contained automatically.
+FAILSAFE_THRESHOLD = 0.95
 logger = logging.getLogger("uvicorn.error")
 
 

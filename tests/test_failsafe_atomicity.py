@@ -288,3 +288,28 @@ def test_demo_trigger_never_flips_a_quarantined_device(client):
 
     assert response.status_code == 404
     assert all(_device_status(client, d["id"]) == "quarantined" for d in devices)
+
+
+# ---- threshold -------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("confidence, contained", [(0.90, False), (0.95, True)])
+def test_failsafe_only_auto_contains_at_or_above_threshold(client, monkeypatch, confidence, contained):
+    monkeypatch.setattr(
+        "api.routers.monitor.run_inference",
+        lambda _features: {"label": 1, "confidence": confidence, "is_anomaly": True},
+    )
+    device = client.get("/devices/").json()[0]
+    ingest = client.post("/monitor/ingest", json={"device_id": device["id"], "features": {}}).json()
+
+    _run_one_failsafe_tick()
+
+    alert = _alert_for(client, ingest["alert_id"])
+    if contained:
+        assert _device_status(client, device["id"]) == "quarantined"
+        assert [r["status"] for r in _requests_for(client, device["id"])] == ["ai_contained"]
+    else:
+        # Still a live alert with a pending request for a human, just not auto-contained.
+        assert alert["acknowledged"] is False
+        assert _device_status(client, device["id"]) == "anomaly"
+        assert [r["status"] for r in _requests_for(client, device["id"])] == ["pending"]

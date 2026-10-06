@@ -66,7 +66,7 @@ Where it breaks:
 
 ## 4. Follow-up experiments (`audit_d.py`)
 
-The shipped model and the failsafe threshold are unchanged. These experiments only measure.
+The shipped model is unchanged. After this experiment, the failsafe threshold was raised from 0.85 to 0.95 based on the threshold table below.
 
 **Fixing the sampling doesn't help.** Leave-one-device-out, tested on random rows of the held-out device:
 

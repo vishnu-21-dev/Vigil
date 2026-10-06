@@ -16,6 +16,7 @@ uvicorn api.main:app --port 8000 --workers 1
 - UI: <http://localhost:8000/app/> (dashboard, alerts, quarantine, reports)
 - API docs: <http://localhost:8000/docs>
 - Inject a demo anomaly: `POST /demo/trigger-anomaly`, then leave the alert alone for 120s to watch the failsafe fire.
+- The failsafe auto-quarantines only alerts with model confidence **≥ 0.95**. Lower-confidence alerts still appear with a pending request for a human, but are never contained automatically (why: [`ml/audit/RESULTS.md`](ml/audit/RESULTS.md), section 4).
 
 ### Configuration (`.env`)
 
