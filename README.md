@@ -30,7 +30,7 @@ uvicorn api.main:app --port 8000 --workers 1
 
 ### Always run with `--workers 1`
 
-The failsafe loop and the device/zone seeding run once per worker process. With more than one worker you get duplicate seed devices and several loops contending to contain the same alert.
+The failsafe loop and the device/zone seeding run once per worker process. With more than one worker you get duplicate seed devices and one failsafe loop per worker (containment is transactional, so they cannot double-contain an alert, but it is wasted work).
 
 ## Tests
 

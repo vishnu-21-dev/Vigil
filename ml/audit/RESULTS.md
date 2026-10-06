@@ -63,3 +63,30 @@ Where it breaks:
 - **Not** "99.99% accuracy" as a general claim. The random-row split shares duplicate and adjacent rows across train and test.
 - It does **not** generalize to a botnet family it wasn't trained on (recall 0.60, with 0% on two flood types), and on some unseen devices it raises benign false alarms of up to ~4.7% of rows.
 - All of this is N-BaIoT only (9 devices, 2 botnets, lab captures). Nothing here measures performance on real deployed traffic.
+
+## 4. Follow-up experiments (`audit_d.py`)
+
+The shipped model and the failsafe threshold are unchanged. These experiments only measure.
+
+**Fixing the sampling doesn't help.** Leave-one-device-out, tested on random rows of the held-out device:
+
+| Training sample | F1 | Benign false-alarm rate |
+|---|---|---|
+| First 1,123 rows/file (`pipeline.py` today) | 0.9996 | 0.61% |
+| Random 1,123 rows/file | 0.9994 | 0.85% |
+| Random 4,000 rows/file | 0.9995 | 0.89% |
+
+Taking the first rows is a biased sample, but it isn't what limits generalization. Retraining for this reason alone isn't justified.
+
+**A benign-only per-device detector doesn't fix the unseen-family problem.** Each device gets a model trained on its own normal traffic, using no attack labels. The threshold is the 99.5th percentile on held-back benign rows, not chosen on test data. A PCA reconstruction-error detector catches every other attack type at ≥0.999 but only **22%** of BASHLITE TCP/UDP floods. Its benign false-alarm rate averages 0.5% (worst 1.6%). IsolationForest is much worse. Those two flood types look close to normal traffic in these 115 features.
+
+**Most false auto-quarantines sit just above the 0.85 failsafe threshold.** Pooled over all 9 held-out devices:
+
+| Failsafe threshold | Benign rows auto-quarantined | Worst device | Attacks auto-quarantined |
+|---|---|---|---|
+| 0.85 (current) | 0.39% | device 8: 3.48% | 99.97% |
+| 0.90 | 0.02% | device 8: 0.15% | 99.96% |
+| 0.95 | 0.00% (0 of 36,000) | 0.00% | 99.93% |
+| 0.99 | 0.00% | 0.00% | 99.87% |
+
+Alerts still fire at 0.5 for a human to review either way; this threshold only controls auto-quarantine. Caveat: 0.95 was found by looking at these same held-out folds, so it is not an independent estimate. With 4,000 benign rows per device, "0 of 36,000" means below roughly 0.01%, not zero.
