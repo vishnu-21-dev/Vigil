@@ -106,7 +106,7 @@ def _reload_config(monkeypatch, groq_model):
 
 def test_groq_model_defaults_to_llama_3_1_8b_instant(monkeypatch):
     try:
-        assert _reload_config(monkeypatch, None).settings.groq_model == "llama-3.1-8b-instant"
+        assert _reload_config(monkeypatch, None).settings.groq_model == "openai/gpt-oss-20b"
     finally:
         monkeypatch.undo()
         importlib.reload(config)

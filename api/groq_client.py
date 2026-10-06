@@ -65,6 +65,7 @@ def generate_incident_report(alert: dict[str, Any], device: dict[str, Any]) -> d
     api_key = settings.groq_api_key.strip()
 
     if not api_key:
+        logger.warning("GROQ_API_KEY is not set; using fallback template")
         return {**fallback, "source": "fallback"}
 
     try:
