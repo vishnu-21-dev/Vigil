@@ -24,7 +24,7 @@ let allAlerts = [];
 
 function startPolling() {
   if (pollInterval) clearInterval(pollInterval);
-  pollInterval = setInterval(loadAlerts, 5000);
+  pollInterval = setInterval(loadAlerts, 3000);
 }
 
 // ---- main loader ----

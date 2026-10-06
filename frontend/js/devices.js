@@ -25,7 +25,7 @@ let allDevices = [];
 
 function startPolling() {
   if (pollInterval) clearInterval(pollInterval);
-  pollInterval = setInterval(loadDevices, 5000);
+  pollInterval = setInterval(loadDevices, 3000);
 }
 
 function setupFilters() {

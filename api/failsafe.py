@@ -202,9 +202,12 @@ def backfill_missing_reports() -> int:
     return written
 
 
+FAILSAFE_TICK_SECONDS = 2
+
+
 async def failsafe_loop() -> None:
     while True:
-        await asyncio.sleep(10)
+        await asyncio.sleep(FAILSAFE_TICK_SECONDS)
         try:
             now = datetime.now(timezone.utc)
             alerts = get_active_unacknowledged_alerts()

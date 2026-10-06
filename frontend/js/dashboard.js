@@ -22,7 +22,7 @@ if (document.readyState === "loading") {
 let pollInterval;
 function startPolling() {
   if (pollInterval) clearInterval(pollInterval);
-  pollInterval = setInterval(loadDashboard, 5000);
+  pollInterval = setInterval(loadDashboard, 3000);
 }
 
 // ---- main loader ----

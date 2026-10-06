@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 from pathlib import Path
 import sys
@@ -21,8 +22,14 @@ from api.main import app  # noqa: E402
 from api.store import reset_store  # noqa: E402
 
 
+async def _idle_failsafe_loop() -> None:
+    """Tests drive failsafe ticks explicitly; the app's own loop must not race them."""
+    await asyncio.Event().wait()
+
+
 @pytest.fixture()
-def client() -> TestClient:
+def client(monkeypatch) -> TestClient:
+    monkeypatch.setattr("api.main.failsafe_loop", _idle_failsafe_loop)
     reset_store()
     with TestClient(app) as test_client:
         yield test_client

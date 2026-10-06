@@ -1,4 +1,7 @@
 # Vigil
+
+**Live demo:** https://vigil-i41b.onrender.com/app/ (free tier: the first load after idle takes about a minute, and demo state resets on restart)
+
 Vigil monitors IoT devices in real time, detecting behavioral anomalies via a Random Forest model trained on N-BaIoT. Operators get 120s to respond — if they don't, an AI failsafe auto-quarantines the device. Built with FastAPI, scikit-learn, and Groq.
 
 ## Run it
@@ -58,5 +61,5 @@ On a random row split the model scores 99.99%, but that split shares duplicate a
 ## Known limitations
 
 - **After a restart**, alerts that went overdue while the server was down get one fresh 120s window (logged as `Restart: N overdue alert(s) ...`), so operators can review them before the failsafe acts. This is granted once per alert, so a crash loop can't postpone containment forever. A report lost to a crash after containment is regenerated at startup.
-- **About 15s of UI lag.** The failsafe checks once every 10s and the UI polls every 5s, so an alert can sit past 120s for up to ~10s before it is contained, and up to ~5s more before the UI shows it.
+- **Up to ~5s of UI lag.** The failsafe checks once every 2s and the UI polls every 3s, so an alert can sit past 120s for up to ~2s before it is contained, and up to ~3s more before the UI shows it.
 - **SQLite on deploy.** State is a local SQLite file. It needs a persistent disk, a single worker, and a host that does not spin down (a free-tier spin-down pauses the failsafe loop and, on an ephemeral disk, loses state).
