@@ -7,15 +7,16 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const source = fs.readFileSync(path.join(__dirname, "..", "..", "frontend", "js", "api.js"), "utf8");
-const apiBaseFor = (location) => {
-  const ctx = vm.createContext({ window: { location }, fetch: () => {} });
+const apiBaseFor = (location, override = {}) => {
+  const ctx = vm.createContext({ window: { location, ...override }, fetch: () => {} });
   vm.runInContext(source, ctx);
   return vm.runInContext("API_BASE", ctx);
 };
 assert.equal(apiBaseFor({ hostname: "localhost", port: "8000" }), "", "FastAPI on localhost");
 assert.equal(apiBaseFor({ hostname: "vigil.onrender.com", port: "" }), "", "deployed: same origin");
-assert.equal(apiBaseFor({ hostname: "localhost", port: "5500" }), "http://localhost:8000", "separate dev server");
-console.log("ok   - API_BASE is same-origin except on a separate local dev server");
+assert.equal(apiBaseFor({ hostname: "localhost", port: "5500" }), "", "no implicit port-8000 fallback");
+assert.equal(apiBaseFor({ hostname: "localhost", port: "5500" }, { VIGIL_API_BASE: "http://localhost:8000" }), "http://localhost:8000", "explicit override");
+console.log("ok   - API_BASE is same-origin unless window.VIGIL_API_BASE is set");
 
 const context = vm.createContext({ window: { location: { hostname: "localhost", port: "8000" } }, fetch: () => {} });
 vm.runInContext(source, context);

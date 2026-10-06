@@ -32,3 +32,34 @@ def test_default_model_dir_is_inside_repo(monkeypatch):
     finally:
         monkeypatch.undo()
         importlib.reload(config)
+
+
+def test_failsafe_timeout_defaults_to_120(monkeypatch):
+    monkeypatch.delenv("FAILSAFE_TIMEOUT", raising=False)
+    try:
+        assert importlib.reload(config).settings.failsafe_timeout == 120
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config)
+
+
+def test_failsafe_timeout_reads_env(monkeypatch):
+    monkeypatch.setenv("FAILSAFE_TIMEOUT", "30")
+    try:
+        assert importlib.reload(config).settings.failsafe_timeout == 30
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config)
+
+
+def test_failsafe_timeout_rejects_bad_values(monkeypatch):
+    import pytest
+
+    try:
+        for bad in ("abc", "0", "-5"):
+            monkeypatch.setenv("FAILSAFE_TIMEOUT", bad)
+            with pytest.raises(ValueError, match="FAILSAFE_TIMEOUT"):
+                importlib.reload(config)
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config)

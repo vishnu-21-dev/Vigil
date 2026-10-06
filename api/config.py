@@ -20,6 +20,19 @@ def _resolve_model_dir() -> str:
     return str(path if path.is_absolute() else (PROJECT_ROOT / path).resolve())
 
 
+def _env_positive_int(name: str, default: int) -> int:
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        raise ValueError(f"{name} must be a whole number of seconds, got {raw!r}") from None
+    if value <= 0:
+        raise ValueError(f"{name} must be greater than 0, got {value}")
+    return value
+
+
 @dataclass(frozen=True)
 class Settings:
     app_env: str = os.getenv("APP_ENV", "development")
@@ -27,6 +40,7 @@ class Settings:
     db_path: str = os.getenv("DB_PATH", "data/app_state.sqlite3")
     groq_api_key: str = os.getenv("GROQ_API_KEY", "")
     groq_model: str = os.getenv("GROQ_MODEL") or "openai/gpt-oss-20b"
+    failsafe_timeout: int = _env_positive_int("FAILSAFE_TIMEOUT", 120)
 
 
 settings = Settings()

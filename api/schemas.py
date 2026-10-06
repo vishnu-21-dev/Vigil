@@ -119,6 +119,7 @@ class ReportResponse(BaseModel):
     affected_devices: list[str]
     created_at: datetime
     alert_id: str
+    source: str | None = None  # "llm" or "fallback"; None for reports saved before this was recorded
 
 
 class AnomalyResult(BaseModel):

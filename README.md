@@ -21,6 +21,8 @@ uvicorn api.main:app --port 8000 --workers 1
 - Inject a demo anomaly: `POST /demo/trigger-anomaly`, then leave the alert alone for 120s to watch the failsafe fire.
 - The failsafe auto-quarantines only alerts with model confidence **≥ 0.95**. Lower-confidence alerts still appear with a pending request for a human, but are never contained automatically (why: [`ml/audit/RESULTS.md`](ml/audit/RESULTS.md), section 4).
 
+Check that reports come from the LLM and not the template: `python scripts/check_report_source.py` prints `STORED SOURCE: LLM` or `STORED SOURCE: FALLBACK` (it sends one made-up incident to Groq). `python scripts/demo_pipeline.py` is a manual end-to-end smoke script.
+
 ### Configuration (`.env`)
 
 | Variable | Default | Notes |
@@ -29,6 +31,7 @@ uvicorn api.main:app --port 8000 --workers 1
 | `GROQ_MODEL` | `openai/gpt-oss-20b` | Must be a model your key can access. |
 | `MODEL_DIR` | `ml/models` | Where `model.pkl` and `scaler.pkl` live. |
 | `DB_PATH` | `data/app_state.sqlite3` | SQLite file. |
+| `FAILSAFE_TIMEOUT` | `120` | Seconds an alert may sit unacknowledged before the AI failsafe acts. Must be a positive whole number. |
 
 `scikit-learn` is pinned to 1.8.0 because that is the version the saved model was pickled with. Change it only together with retraining.
 
@@ -50,7 +53,7 @@ Free-tier caveats: the service sleeps after ~15 minutes idle, so the failsafe lo
 ## Tests
 
 ```bash
-python -m pytest                       # backend (70 tests)
+python -m pytest                       # backend (73 tests)
 node tests/js/failsafe_state.test.js   # frontend failsafe-state logic
 ```
 

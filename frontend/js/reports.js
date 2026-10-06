@@ -87,6 +87,7 @@ function renderReportsList(reports) {
             <div class="flex items-center gap-sm mb-xs">
               <span class="${severityConfig.badgeClass} font-label-caps text-label-caps px-2 py-0.5 rounded text-[10px]">${(r.severity || 'low').toUpperCase()}</span>
               <span class="font-data-sm text-data-sm text-on-surface-variant">${timeAgo(r.created_at)}</span>
+              ${sourceBadge(r.source)}
             </div>
             <h3 class="font-data-md text-data-md text-on-surface truncate">${esc(r.title)}</h3>
             <p class="font-body-sm text-body-sm text-on-surface-variant mt-xs truncate">${esc(r.summary)}</p>
@@ -168,6 +169,12 @@ async function handleGenerateReport(alertId) {
 }
 
 // ---- utilities ----
+
+function sourceBadge(source) {
+  if (source === "llm") return '<span class="font-label-caps text-label-caps px-2 py-0.5 rounded text-[10px] border border-outline-variant text-on-surface-variant" title="Written by the Groq model">AI</span>';
+  if (source === "fallback") return '<span class="font-label-caps text-label-caps px-2 py-0.5 rounded text-[10px] border border-outline-variant text-on-surface-variant" title="Built-in template (no AI report available)">TEMPLATE</span>';
+  return '';
+}
 
 function getSeverityConfig(severity) {
   switch ((severity || "low").toLowerCase()) {

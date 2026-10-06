@@ -33,3 +33,6 @@ data/*.csv
 # Generated ML model artifacts
 ml/models/*.pkl
 ml/models/*.joblib
+
+# Output of scripts/demo_pipeline.py
+demo_output.txt

@@ -135,7 +135,7 @@ def _generate_report_via_api(client):
     return response.json()
 
 
-def test_stored_report_records_llm_source_but_api_shape_is_unchanged(client, fake_groq):
+def test_stored_report_records_llm_source_and_api_exposes_it(client, fake_groq):
     fake_groq.respond = lambda: _completion(
         {"title": "LLM title", "severity": "high", "summary": "S", "full_report": "F"}
     )
@@ -143,7 +143,7 @@ def test_stored_report_records_llm_source_but_api_shape_is_unchanged(client, fak
     body = _generate_report_via_api(client)
 
     assert get_report(body["id"])["source"] == "llm"
-    assert "source" not in body  # ReportResponse is unchanged
+    assert body["source"] == "llm"
 
 
 def test_stored_report_records_fallback_source_when_groq_fails(client, fake_groq):
@@ -155,4 +155,4 @@ def test_stored_report_records_fallback_source_when_groq_fails(client, fake_groq
     body = _generate_report_via_api(client)
 
     assert get_report(body["id"])["source"] == "fallback"
-    assert "source" not in body
+    assert body["source"] == "fallback"
