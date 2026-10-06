@@ -39,6 +39,10 @@ python -m pytest                       # backend (42 tests)
 node tests/js/failsafe_state.test.js   # frontend failsafe-state logic
 ```
 
+## Model accuracy
+
+On a random row split the model scores 99.99%, but that split shares duplicate and time-adjacent rows between train and test. With whole devices or whole attack types held out, it scores about 99.9% F1. It does **not** generalize to an unseen botnet family: trained without BASHLITE, it catches 60% of BASHLITE traffic and 0% of its TCP/UDP floods. On some unseen devices, up to ~4.7% of benign rows are flagged. Full method and numbers: [`ml/audit/RESULTS.md`](ml/audit/RESULTS.md).
+
 ## Known limitations
 
 - **Check-then-act race.** `auto_quarantine` re-reads the alert and device, then writes, without a single transaction. An operator approving or dismissing at the same instant as the failsafe can still produce a conflicting result.
