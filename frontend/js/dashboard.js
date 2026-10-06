@@ -62,7 +62,11 @@ function updateCountdowns() {
     }
     const createdTime = new Date(createdTimeStr).getTime();
     const elapsed = Math.floor((Date.now() - createdTime) / 1000);
-    const remaining = Math.max(0, timeout - elapsed);
+    // Server deadline includes any grace granted after a restart; fall back to created + timeout.
+    const deadlineStr = el.getAttribute('data-deadline');
+    const remaining = deadlineStr
+      ? Math.max(0, Math.ceil((Date.parse(deadlineStr) - Date.now()) / 1000))
+      : Math.max(0, timeout - elapsed);
     
     if (remaining > 0) {
       el.innerHTML = `Timer: ${remaining}s remaining`;
@@ -273,7 +277,7 @@ function renderAlertFeed(alerts, devices, quarantine) {
         <span class="font-body-sm text-body-sm text-on-surface-variant">Anomaly Confidence:</span>
         <span class="font-data-sm text-data-sm text-on-surface bg-surface-container border border-outline-variant px-1 rounded mr-md">${(a.confidence * 100).toFixed(0)}%</span>
         ${state === "countdown"
-          ? `<span class="failsafe-countdown" data-created="${a.created_at}" data-timeout="${a.failsafe_timeout || 120}"></span>`
+          ? `<span class="failsafe-countdown" data-created="${a.created_at}" data-timeout="${a.failsafe_timeout || 120}" data-deadline="${a.failsafe_deadline || ''}"></span>`
           : state === "ai_contained"
             ? `<span class="text-on-error-container bg-error-container px-2 py-0.5 rounded font-label-caps text-[10px]">AI CONTAINED</span>`
             : `<span class="text-on-surface-variant border border-outline-variant px-2 py-0.5 rounded font-label-caps text-[10px]">HANDLED</span>`}

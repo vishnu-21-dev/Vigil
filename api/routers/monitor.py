@@ -11,7 +11,9 @@ from api.store import (
     add_alert,
     add_quarantine_request,
     get_all_devices,
+    get_all_quarantine_requests,
     get_device,
+    transaction,
     update_device,
 )
 
@@ -21,10 +23,10 @@ router = APIRouter(prefix="/monitor", tags=["monitor"])
 
 @router.post("/ingest")
 def ingest_behavior(reading: BehaviorReading) -> dict[str, object]:
-    device = get_device(reading.device_id)
-    if device is None:
+    if get_device(reading.device_id) is None:
         raise HTTPException(status_code=404, detail="Device not found.")
 
+    # Inference is slow; run it before taking the write lock.
     inference = run_inference(reading.features)
     if "error" in inference:
         raise HTTPException(status_code=503, detail=inference["error"])
@@ -32,63 +34,84 @@ def ingest_behavior(reading: BehaviorReading) -> dict[str, object]:
     confidence = float(inference["confidence"])
     now = datetime.now(timezone.utc)
 
-    if inference["is_anomaly"]:
-        updated_device = update_device(
-            reading.device_id,
-            {
-                "status": "anomaly",
-                "last_seen": now,
-                "anomaly_score": confidence,
-            },
-        )
-        if updated_device is None:
+    with transaction():
+        device = get_device(reading.device_id)
+        if device is None:
             raise HTTPException(status_code=404, detail="Device not found.")
 
-        alert = add_alert(
-            {
-                "id": str(uuid4()),
-                "device_id": device["id"],
-                "device_name": device["name"],
-                "alert_type": "Anomaly Detected",
+        if device["status"] == "quarantined":
+            # Only an explicit release takes a device out of quarantine.
+            update_device(device["id"], {"last_seen": now, "anomaly_score": confidence})
+            return {
+                "device_id": reading.device_id,
+                "is_anomaly": bool(inference["is_anomaly"]),
                 "confidence": confidence,
-                "timestamp": now,
-                "zone": device["zone"],
-                "status": "active",
+                "quarantined": True,
             }
-        )
-        quarantine_request = add_quarantine_request(
-            {
-                "id": str(uuid4()),
-                "device_id": device["id"],
-                "device_name": device["name"],
-                "zone": device["zone"],
+
+        if inference["is_anomaly"]:
+            update_device(
+                device["id"],
+                {
+                    "status": "anomaly",
+                    "last_seen": now,
+                    "anomaly_score": confidence,
+                },
+            )
+
+            alert = add_alert(
+                {
+                    "id": str(uuid4()),
+                    "device_id": device["id"],
+                    "device_name": device["name"],
+                    "alert_type": "Anomaly Detected",
+                    "confidence": confidence,
+                    "timestamp": now,
+                    "zone": device["zone"],
+                    "status": "active",
+                }
+            )
+            # One open review per device: reuse its pending request if there is one.
+            quarantine_request = next(
+                (
+                    item
+                    for item in get_all_quarantine_requests(status="pending")
+                    if item["device_id"] == device["id"]
+                ),
+                None,
+            )
+            if quarantine_request is None:
+                quarantine_request = add_quarantine_request(
+                    {
+                        "id": str(uuid4()),
+                        "device_id": device["id"],
+                        "device_name": device["name"],
+                        "zone": device["zone"],
+                        "confidence": confidence,
+                        "flagged_at": now,
+                        "status": "pending",
+                        "approved_by": None,
+                        "approved_at": None,
+                        "reason": "Automatically flagged from anomaly detection.",
+                    }
+                )
+
+            return {
+                "device_id": reading.device_id,
+                "is_anomaly": True,
                 "confidence": confidence,
-                "flagged_at": now,
-                "status": "pending",
-                "approved_by": None,
-                "approved_at": None,
-                "reason": "Automatically flagged from anomaly detection.",
+                "alert_id": alert["id"],
+                "quarantine_request_id": quarantine_request["id"],
             }
+
+        update_device(
+            device["id"],
+            {
+                "last_seen": now,
+                "anomaly_score": confidence,
+                "status": "normal",
+            },
         )
-
-        return {
-            "device_id": reading.device_id,
-            "is_anomaly": True,
-            "confidence": confidence,
-            "alert_id": alert["id"],
-            "quarantine_request_id": quarantine_request["id"],
-        }
-
-    updated_device = update_device(
-        reading.device_id,
-        {
-            "last_seen": now,
-            "anomaly_score": confidence,
-            "status": "normal",
-        },
-    )
-    if updated_device is None:
-        raise HTTPException(status_code=404, detail="Device not found.")
 
     return {
         "device_id": reading.device_id,
@@ -104,39 +127,37 @@ def monitor_root() -> dict[str, str]:
 
 @router.post("/demo/trigger-anomaly")
 def trigger_demo_anomaly() -> dict[str, str]:
-    devices = get_all_devices()
-    device = next(
-        (item for item in devices if item["status"] != "quarantined"),
-        devices[0] if devices else None,
-    )
-    if device is None:
-        raise HTTPException(status_code=404, detail="No demo device available.")
+    with transaction():
+        devices = get_all_devices()
+        device = next((item for item in devices if item["status"] != "quarantined"), None)
+        if device is None:
+            raise HTTPException(status_code=404, detail="No demo device available.")
 
-    now = datetime.now(timezone.utc)
-    confidence = 0.97
-    update_device(
-        device["id"],
-        {
-            "status": "anomaly",
-            "last_seen": now,
-            "anomaly_score": confidence,
-        },
-    )
-    alert = add_alert(
-        {
-            "id": str(uuid4()),
-            "device_id": device["id"],
-            "device_name": device["name"],
-            "alert_type": "C&C Communication",
-            "confidence": confidence,
-            "timestamp": now,
-            "zone": device["zone"],
-            "status": "active",
-            "created_at": now,
-            "acknowledged": False,
-        }
-    )
-    return {"alert_id": alert["id"], "message": "Demo anomaly injected"}
+        now = datetime.now(timezone.utc)
+        confidence = 0.97
+        update_device(
+            device["id"],
+            {
+                "status": "anomaly",
+                "last_seen": now,
+                "anomaly_score": confidence,
+            },
+        )
+        alert = add_alert(
+            {
+                "id": str(uuid4()),
+                "device_id": device["id"],
+                "device_name": device["name"],
+                "alert_type": "C&C Communication",
+                "confidence": confidence,
+                "timestamp": now,
+                "zone": device["zone"],
+                "status": "active",
+                "created_at": now,
+                "acknowledged": False,
+            }
+        )
+        return {"alert_id": alert["id"], "message": "Demo anomaly injected"}
 
 
 # if __name__ == "__main__":

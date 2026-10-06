@@ -16,6 +16,7 @@ from api.store import (
     get_all_quarantine_requests,
     get_device,
     get_quarantine_request,
+    transaction,
     update_device,
     update_quarantine_request,
 )
@@ -53,32 +54,33 @@ def _acknowledge_device_alerts(device_id: str) -> None:
 def create_quarantine_request(
     request: QuarantineRequestCreate,
 ) -> QuarantineResponse:
-    device = get_device(request.device_id)
-    if device is None:
-        raise HTTPException(status_code=404, detail="Device not found.")
-    if device["status"] != "anomaly":
-        raise HTTPException(
-            status_code=400,
-            detail="Device must be in anomaly status before quarantine review.",
-        )
+    with transaction():
+        device = get_device(request.device_id)
+        if device is None:
+            raise HTTPException(status_code=404, detail="Device not found.")
+        if device["status"] != "anomaly":
+            raise HTTPException(
+                status_code=400,
+                detail="Device must be in anomaly status before quarantine review.",
+            )
 
-    created = add_quarantine_request(
-        {
-            "id": __import__("uuid").uuid4().hex,
-            "device_id": device["id"],
-            "device_name": device["name"],
-            "zone": device["zone"],
-            "confidence": float(device.get("anomaly_score", 0.0)),
-            "flagged_at": datetime.now(timezone.utc),
-            "status": "pending",
-            "approved_by": None,
-            "approved_at": None,
-            "reason": request.reason,
-            "requires_human_approval": True,
-        }
-    )
-    _acknowledge_device_alerts(device["id"])
-    return QuarantineResponse(**created)
+        created = add_quarantine_request(
+            {
+                "id": __import__("uuid").uuid4().hex,
+                "device_id": device["id"],
+                "device_name": device["name"],
+                "zone": device["zone"],
+                "confidence": float(device.get("anomaly_score", 0.0)),
+                "flagged_at": datetime.now(timezone.utc),
+                "status": "pending",
+                "approved_by": None,
+                "approved_at": None,
+                "reason": request.reason,
+                "requires_human_approval": True,
+            }
+        )
+        _acknowledge_device_alerts(device["id"])
+        return QuarantineResponse(**created)
 
 
 @router.get("/", response_model=list[QuarantineResponse])
@@ -105,65 +107,68 @@ def get_quarantine_request_by_id(request_id: str) -> QuarantineResponse:
 def approve_quarantine_request(
     request_id: str, approval: QuarantineApproval
 ) -> QuarantineResponse:
-    request = get_quarantine_request(request_id)
-    if request is None:
-        raise HTTPException(status_code=404, detail="Quarantine request not found.")
-    _require_pending(request, "approved")
+    with transaction():
+        request = get_quarantine_request(request_id)
+        if request is None:
+            raise HTTPException(status_code=404, detail="Quarantine request not found.")
+        _require_pending(request, "approved")
 
-    now = datetime.now(timezone.utc)
-    updated_request = update_quarantine_request(
-        request_id,
-        {
-            "status": "approved",
-            "approved_by": approval.approved_by,
-            "approved_at": now,
-            "reason": request["reason"]
-            if approval.notes is None
-            else f"{request['reason']} | Notes: {approval.notes}",
-            "requires_human_approval": True,
-        },
-    )
-    update_device(request["device_id"], {"status": "quarantined"})
-    _acknowledge_device_alerts(request["device_id"])
-    return QuarantineResponse(**updated_request)
+        now = datetime.now(timezone.utc)
+        updated_request = update_quarantine_request(
+            request_id,
+            {
+                "status": "approved",
+                "approved_by": approval.approved_by,
+                "approved_at": now,
+                "reason": request["reason"]
+                if approval.notes is None
+                else f"{request['reason']} | Notes: {approval.notes}",
+                "requires_human_approval": True,
+            },
+        )
+        update_device(request["device_id"], {"status": "quarantined"})
+        _acknowledge_device_alerts(request["device_id"])
+        return QuarantineResponse(**updated_request)
 
 
 @router.post("/{request_id}/dismiss", response_model=QuarantineResponse)
 def dismiss_quarantine_request(request_id: str) -> QuarantineResponse:
-    request = get_quarantine_request(request_id)
-    if request is None:
-        raise HTTPException(status_code=404, detail="Quarantine request not found.")
-    _require_pending(request, "dismissed")
+    with transaction():
+        request = get_quarantine_request(request_id)
+        if request is None:
+            raise HTTPException(status_code=404, detail="Quarantine request not found.")
+        _require_pending(request, "dismissed")
 
-    updated_request = update_quarantine_request(
-        request_id,
-        {
-            "status": "dismissed",
-            "requires_human_approval": True,
-        },
-    )
-    update_device(request["device_id"], {"status": "normal", "anomaly_score": 0.0})
-    _acknowledge_device_alerts(request["device_id"])
-    return QuarantineResponse(**updated_request)
+        updated_request = update_quarantine_request(
+            request_id,
+            {
+                "status": "dismissed",
+                "requires_human_approval": True,
+            },
+        )
+        update_device(request["device_id"], {"status": "normal", "anomaly_score": 0.0})
+        _acknowledge_device_alerts(request["device_id"])
+        return QuarantineResponse(**updated_request)
 
 
 @router.post("/{request_id}/release", response_model=QuarantineResponse)
 def release_quarantined_device(request_id: str) -> QuarantineResponse:
-    request = get_quarantine_request(request_id)
-    if request is None:
-        raise HTTPException(status_code=404, detail="Quarantine request not found.")
-    if request["status"] not in {"approved", "ai_contained"}:
-        raise HTTPException(
-            status_code=400,
-            detail="Only approved or AI-contained quarantine requests can be released.",
-        )
+    with transaction():
+        request = get_quarantine_request(request_id)
+        if request is None:
+            raise HTTPException(status_code=404, detail="Quarantine request not found.")
+        if request["status"] not in {"approved", "ai_contained"}:
+            raise HTTPException(
+                status_code=400,
+                detail="Only approved or AI-contained quarantine requests can be released.",
+            )
 
-    updated_request = update_quarantine_request(
-        request_id,
-        {
-            "status": "released",
-            "requires_human_approval": True,
-        },
-    )
-    update_device(request["device_id"], {"status": "normal", "anomaly_score": 0.0})
-    return QuarantineResponse(**updated_request)
+        updated_request = update_quarantine_request(
+            request_id,
+            {
+                "status": "released",
+                "requires_human_approval": True,
+            },
+        )
+        update_device(request["device_id"], {"status": "normal", "anomaly_score": 0.0})
+        return QuarantineResponse(**updated_request)

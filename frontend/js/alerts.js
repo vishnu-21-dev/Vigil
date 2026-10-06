@@ -71,7 +71,11 @@ function updateCountdowns() {
     }
     const createdTime = new Date(createdTimeStr).getTime();
     const elapsed = Math.floor((Date.now() - createdTime) / 1000);
-    const remaining = Math.max(0, timeout - elapsed);
+    // Server deadline includes any grace granted after a restart; fall back to created + timeout.
+    const deadlineStr = el.getAttribute('data-deadline');
+    const remaining = deadlineStr
+      ? Math.max(0, Math.ceil((Date.parse(deadlineStr) - Date.now()) / 1000))
+      : Math.max(0, timeout - elapsed);
     
     if (remaining > 0) {
       el.textContent = remaining + 's';
@@ -161,7 +165,7 @@ function renderAlertsTable(alerts, quarantine) {
         </td>
         <td class="p-md font-data-md text-data-md">
           ${state === "countdown" ? `
-            <span class="failsafe-countdown text-error font-bold" data-created="${a.created_at}" data-timeout="${a.failsafe_timeout || 120}">--</span>
+            <span class="failsafe-countdown text-error font-bold" data-created="${a.created_at}" data-timeout="${a.failsafe_timeout || 120}" data-deadline="${a.failsafe_deadline || ''}">--</span>
           ` : state === "ai_contained" ? `
             <span class="text-tertiary font-bold">AI CONTAINED</span>
           ` : state === "handled" ? `

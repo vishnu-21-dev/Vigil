@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime, timezone
 import ipaddress
 import json
 from pathlib import Path
 import sqlite3
-from typing import Any, Iterable
+import threading
+from typing import Any, Iterable, Iterator
 
 from api.config import settings
 
@@ -19,12 +21,57 @@ def _db_path() -> Path:
     return path if path.is_absolute() else PROJECT_ROOT / path
 
 
-def _connect() -> sqlite3.Connection:
+# Seconds a writer waits for another writer's transaction before giving up.
+_BUSY_TIMEOUT = 30
+_local = threading.local()
+
+
+def _open(**kwargs: Any) -> sqlite3.Connection:
     path = _db_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(path)
+    connection = sqlite3.connect(path, timeout=_BUSY_TIMEOUT, **kwargs)
     connection.row_factory = sqlite3.Row
     return connection
+
+
+@contextmanager
+def _connect() -> Iterator[sqlite3.Connection]:
+    """Use the open transaction on this thread, or a short-lived connection."""
+    current = getattr(_local, "connection", None)
+    if current is not None:
+        yield current
+        return
+    connection = _open()
+    try:
+        with connection:
+            yield connection
+    finally:
+        connection.close()
+
+
+@contextmanager
+def transaction() -> Iterator[None]:
+    """Run every store call inside the block as one atomic, serialized unit.
+
+    BEGIN IMMEDIATE takes SQLite's write lock up front, so a second transaction
+    (another thread or another worker process) waits until this one commits and
+    then re-reads committed state. Use it around any read-check-write.
+    """
+    if getattr(_local, "connection", None) is not None:
+        yield  # already inside a transaction on this thread
+        return
+    connection = _open(isolation_level=None)
+    connection.execute("BEGIN IMMEDIATE")
+    _local.connection = connection
+    try:
+        yield
+        connection.execute("COMMIT")
+    except BaseException:
+        connection.execute("ROLLBACK")
+        raise
+    finally:
+        _local.connection = None
+        connection.close()
 
 
 def init_db() -> None:
@@ -188,8 +235,26 @@ def get_active_unacknowledged_alerts() -> list[dict[str, Any]]:
     return _load_rows(rows)
 
 
+def get_alert(alert_id: str) -> dict[str, Any] | None:
+    with _connect() as connection:
+        row = connection.execute(
+            "SELECT payload FROM alerts WHERE id = ?",
+            (alert_id,),
+        ).fetchone()
+    return deepcopy(_load(row["payload"])) if row is not None else None
+
+
+def update_alert(alert_id: str, updates: dict[str, Any]) -> dict[str, Any] | None:
+    alert = get_alert(alert_id)
+    if alert is None:
+        return None
+
+    alert.update(deepcopy(updates))
+    return _store_alert(alert)
+
+
 def acknowledge_alert(alert_id: str) -> None:
-    alert = next((item for item in get_all_alerts() if item["id"] == alert_id), None)
+    alert = get_alert(alert_id)
     if alert is None:
         return
 
@@ -198,7 +263,7 @@ def acknowledge_alert(alert_id: str) -> None:
 
 
 def resolve_alert(alert_id: str) -> dict[str, Any] | None:
-    alert = next((item for item in get_all_alerts() if item["id"] == alert_id), None)
+    alert = get_alert(alert_id)
     if alert is None:
         return None
 

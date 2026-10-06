@@ -73,6 +73,7 @@ class AlertResponse(BaseModel):
     created_at: datetime
     acknowledged: bool = False
     failsafe_timeout: int = 120
+    failsafe_deadline: datetime | None = None
 
 
 class QuarantineRequestCreate(BaseModel):

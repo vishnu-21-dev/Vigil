@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from api.failsafe import failsafe_loop
+from api.failsafe import backfill_missing_reports, failsafe_loop, grant_restart_grace
 from api.routers import alerts, devices, monitor, quarantine, reports, zones
 from api.store import add_device, add_zone, get_all_devices, get_all_zones
 
@@ -131,11 +131,14 @@ def seed_devices() -> None:
 async def lifespan(_: FastAPI):
     seed_zones()
     seed_devices()
+    grant_restart_grace()
+    backfill = asyncio.create_task(asyncio.to_thread(backfill_missing_reports))
     task = asyncio.create_task(failsafe_loop())
     try:
         yield
     finally:
         task.cancel()
+        backfill.cancel()
         with suppress(asyncio.CancelledError):
             await task
 
