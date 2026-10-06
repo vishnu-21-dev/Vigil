@@ -9,9 +9,13 @@
  *   const alert  = await API.alerts.get("some-id");
  */
 
-const API_BASE = window.location.port === "8000"
-  ? ""                             // Served from FastAPI
-  : "http://localhost:8000";       // Separate dev server
+// Same origin by default (FastAPI serves this UI, locally and when deployed).
+// Only a separate local dev server (e.g. localhost:5500) needs to reach the API on :8000.
+const _loc = window.location;
+const _isLocalHost = _loc.hostname === "localhost" || _loc.hostname === "127.0.0.1";
+const API_BASE = _isLocalHost && _loc.port && _loc.port !== "8000"
+  ? "http://localhost:8000"        // Separate dev server
+  : "";                            // Served from FastAPI
 
 /**
  * How the failsafe countdown should render for an ACTIVE alert.

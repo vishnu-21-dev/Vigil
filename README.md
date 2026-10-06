@@ -33,6 +33,17 @@ uvicorn api.main:app --port 8000 --workers 1
 
 The failsafe loop and the device/zone seeding run once per worker process. With more than one worker you get duplicate seed devices and one failsafe loop per worker (containment is transactional, so they cannot double-contain an alert, but it is wasted work).
 
+## Deploy on Render
+
+`render.yaml` is a Blueprint: one web service, one worker, a 1 GB persistent disk at `/var/data` holding the SQLite file.
+
+1. Push the repo to GitHub.
+2. Render dashboard: **New > Blueprint**, pick this repo, and apply it.
+3. When asked, enter `GROQ_API_KEY` (it is `sync: false`, so it never lives in git).
+4. Open `https://<your-service>.onrender.com/app/`.
+
+It must be a paid instance: the free tier sleeps (the failsafe stops) and has no disk (state is wiped on every deploy). Keep it at one instance. Check `PYTHON_VERSION` in `render.yaml` against what Render supports if the build fails.
+
 ## Tests
 
 ```bash

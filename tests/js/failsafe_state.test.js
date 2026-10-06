@@ -7,7 +7,17 @@ const path = require("node:path");
 const vm = require("node:vm");
 
 const source = fs.readFileSync(path.join(__dirname, "..", "..", "frontend", "js", "api.js"), "utf8");
-const context = vm.createContext({ window: { location: { port: "8000" } }, fetch: () => {} });
+const apiBaseFor = (location) => {
+  const ctx = vm.createContext({ window: { location }, fetch: () => {} });
+  vm.runInContext(source, ctx);
+  return vm.runInContext("API_BASE", ctx);
+};
+assert.equal(apiBaseFor({ hostname: "localhost", port: "8000" }), "", "FastAPI on localhost");
+assert.equal(apiBaseFor({ hostname: "vigil.onrender.com", port: "" }), "", "deployed: same origin");
+assert.equal(apiBaseFor({ hostname: "localhost", port: "5500" }), "http://localhost:8000", "separate dev server");
+console.log("ok   - API_BASE is same-origin except on a separate local dev server");
+
+const context = vm.createContext({ window: { location: { hostname: "localhost", port: "8000" } }, fetch: () => {} });
 vm.runInContext(source, context);
 const failsafeState = context.failsafeState;
 assert.equal(typeof failsafeState, "function", "api.js must define failsafeState");
