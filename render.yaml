@@ -1,26 +1,23 @@
-# Render Blueprint: New > Blueprint > pick this repo. Needs a paid instance because
-# the failsafe loop must stay awake and SQLite needs a persistent disk.
+# Render Blueprint (FREE tier demo): New > Blueprint > pick this repo.
+# Free tier limits: the service sleeps after ~15 min idle (the failsafe loop pauses)
+# and there is no persistent disk, so SQLite state resets on every deploy/restart.
+# For real use switch to plan: starter and add a disk (see README).
 services:
   - type: web
     name: vigil
     runtime: python
-    plan: starter            # free tier sleeps (stops the failsafe) and has no disk
+    plan: free
     buildCommand: pip install -r requirements.txt
     # One worker only: the failsafe loop and seeding run once per worker process.
     startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT --workers 1
     healthCheckPath: /health
-    numInstances: 1          # never scale out; SQLite is single-writer
-    disk:
-      name: vigil-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: PYTHON_VERSION
         value: 3.14.3
       - key: APP_ENV
         value: production
       - key: DB_PATH
-        value: /var/data/app_state.sqlite3
+        value: /tmp/app_state.sqlite3
       - key: GROQ_MODEL
         value: openai/gpt-oss-20b
       - key: GROQ_API_KEY

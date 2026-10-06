@@ -35,19 +35,19 @@ The failsafe loop and the device/zone seeding run once per worker process. With 
 
 ## Deploy on Render
 
-`render.yaml` is a Blueprint: one web service, one worker, a 1 GB persistent disk at `/var/data` holding the SQLite file.
+`render.yaml` is a Blueprint for one web service on the **free** plan (demo setup).
 
 1. Push the repo to GitHub.
 2. Render dashboard: **New > Blueprint**, pick this repo, and apply it.
 3. When asked, enter `GROQ_API_KEY` (it is `sync: false`, so it never lives in git).
 4. Open `https://<your-service>.onrender.com/app/`.
 
-It must be a paid instance: the free tier sleeps (the failsafe stops) and has no disk (state is wiped on every deploy). Keep it at one instance. Check `PYTHON_VERSION` in `render.yaml` against what Render supports if the build fails.
+Free-tier caveats: the service sleeps after ~15 minutes idle, so the failsafe loop pauses until the next request wakes it, and there is no persistent disk, so SQLite state (`/tmp`) resets on every deploy or restart. For real use, change `plan` to `starter`, add a 1 GB `disk` mounted at `/var/data`, and set `DB_PATH=/var/data/app_state.sqlite3`. Keep one instance. Check `PYTHON_VERSION` in `render.yaml` against what Render supports if the build fails.
 
 ## Tests
 
 ```bash
-python -m pytest                       # backend (68 tests)
+python -m pytest                       # backend (70 tests)
 node tests/js/failsafe_state.test.js   # frontend failsafe-state logic
 ```
 
